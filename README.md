@@ -2,17 +2,6 @@
 
 Proiect complet de control automat pentru reglarea vitezei unui motor DC cu encoder, de la **identificarea sistemului**, prin **proiectarea regulatorului PI prin loop shaping** în domeniul frecvenței, **validare în Simulink**, până la **implementare în timp real pe Arduino**.
 
-## Arhitectura proiectului
-
-```mermaid
-flowchart LR
-    A[Motor DC + Encoder] -->|date PWM/RPM| B[Identificare sistem<br/>MATLAB]
-    B -->|model P(s)| C[Proiectare PI<br/>loop shaping]
-    C -->|C(s) -> C z| D[Validare Simulink<br/>buclă închisă]
-    D -->|coeficienți discreți| E[Implementare<br/>Arduino timp real]
-    E -->|date PWM/RPM| A
-```
-
 ## Conținut
 
 | Fișier | Descriere |
