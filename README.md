@@ -92,7 +92,7 @@ cu $b_0 = 1.896$, $b_1 = -1.137$ (coeficienții rezultați din discretizare).
 1. **Identificare**: rulează `matlab/identificare_planta.mlx` (necesită System Identification Toolbox) pe `data/identificare_sistem.csv`
 2. **Design regulator**: rulează `matlab/identificare_regulator_loopshaping.mlx` (necesită Control System Toolbox)
 3. **Validare**: deschide `simulink/simulare_regulator_simulink.slx` în Simulink și simulează
-4. **Hardware**: încarcă `firmware/motor_pi_controller.ino` pe Arduino, conectează motorul/encoderul conform pinout-ului, trimite referința de viteză (RPM) prin Serial Monitor la 115200 baud
+4. **Hardware**: încarcă `firmware/motor_pi_controller.ino` pe Arduino, conectează motorul/encoderul conform pinout-ului din fișierul .ino, trimite referința de viteză (RPM) prin Serial Monitor la 115200 baud
 
 ## Cerințe
 
