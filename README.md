@@ -1,107 +1,106 @@
 # DC Motor PI Speed Control — Identification, Loop Shaping & Real-Time Implementation
 
-Proiect complet de control automat pentru reglarea vitezei unui motor DC cu encoder, de la **identificarea sistemului**, prin **proiectarea regulatorului PI prin loop shaping** în domeniul frecvenței, **validare în Simulink**, până la **implementare în timp real pe Arduino**.
+Complete automatic control project for regulating the speed of a DC motor with encoder, from **system identification**, through **PI controller design via loop shaping** in the frequency domain, **Simulink validation**, to **real-time implementation on Arduino**.
 
-## Conținut
+## Contents
 
-| Fișier | Descriere |
+| File | Description |
 |---|---|
-| `data/identificare_sistem.csv` | Date experimentale răspuns la treaptă (timp, PWM, RPM) — folosite pentru identificare |
-| `matlab/identificare_planta.mlx` | Identificarea modelului de proces (funcție de transfer de ordin 1) din datele experimentale |
-| `matlab/identificare_regulator_loopshaping.mlx` | Proiectarea regulatorului PI prin loop shaping, analiză Bode/margine de fază, discretizare |
-| `simulink/simulare_regulator_simulink.slx` | Model Simulink pentru validarea buclei închise (plantă + regulator) |
-| `firmware/motor_pi_controller.ino` | Firmware Arduino: citire encoder (interrupt), regulator PI discret, comunicație serială |
-| `demonstration/demonstration_video` | Vide demonstrativ pentru proiect|
+| `data/identificare_sistem.csv` | Experimental step-response data (time, PWM, RPM) — used for identification |
+| `matlab/identificare_planta.mlx` | Process model identification (1st-order transfer function) from experimental data |
+| `matlab/identificare_regulator_loopshaping.mlx` | PI controller design via loop shaping, Bode/phase margin analysis, discretization |
+| `simulink/simulare_regulator_simulink.slx` | Simulink model for closed-loop validation (plant + controller) |
+| `firmware/motor_pi_controller.ino` | Arduino firmware: encoder reading (interrupt), discrete PI controller, serial communication |
+| `demonstration/demonstration_video` | Demonstration video for the project |
 
+## 1. System Identification
 
-## 1. Identificare sistem
+Data: PWM → RPM step response, sampled at `Ts ≈ 50 ms` (`data/identificare_sistem.csv`).
 
-Date: răspuns la treaptă PWM → RPM, eșantionate la `Ts ≈ 50 ms` (`data/identificare_sistem.csv`).
-
-Model identificat (`procest`, proces de ordin 1, fără timp mort):
+Identified model (`procest`, 1st-order process, no dead time):
 
 $$
 P(s) = \frac{0.8311}{0.04964\,s + 1}
 $$
 
-→ constantă de timp $\tau \approx 49.6\ \text{ms}$, câștig static $K_p \approx 0.83$.
+→ time constant $\tau \approx 49.6\ \text{ms}$, static gain $K_p \approx 0.83$.
 
-## 2. Proiectare regulator — Loop Shaping
+## 2. Controller Design — Loop Shaping
 
-**Cerințe de performanță:**
-- Timp de eșantionare: `Ts = 0.05 s`
+**Performance requirements:**
+- Sampling time: `Ts = 0.05 s`
 - Overshoot: 0–10%
-- Eroare staționară ≈ 0
-- Saturare actuator: PWM ∈ [0, 255]
-- Margine de fază robustă
+- Steady-state error ≈ 0
+- Actuator saturation: PWM ∈ [0, 255]
+- Robust phase margin
 
-**Metodă:** plasare zero + câștig pentru frecvența de tăiere dorită $\omega_c$.
+**Method:** zero placement + gain for the desired crossover frequency $\omega_c$.
 
 ```matlab
 s = tf('s');
 P = 0.8311/(0.04964*s + 1);
 
-wc = 20;           % frecventa de taiere dorita [rad/s]
-z  = wc/2;         % plasare zerou PI
+wc = 20;           % desired crossover frequency [rad/s]
+z  = wc/2;         % PI zero placement
 C0 = (s + z)/s;
-K  = 1/abs(evalfr(P*C0, 1j*wc));   % gain pentru |L(jwc)| = 1
+K  = 1/abs(evalfr(P*C0, 1j*wc));   % gain for |L(jwc)| = 1
 C  = K*C0;
 ```
 
-Regulatorul continuu rezultat e discretizat (Tustin, `Ts = 0.05 s`) pentru implementare:
+The resulting continuous controller is discretized (Tustin, `Ts = 0.05 s`) for implementation:
 
 ```matlab
 C_disc = c2d(C, Ts, 'tustin');
 ```
 
-Forma recursivă a regulatorului discret implementată pe Arduino:
+Recursive form of the discrete controller implemented on Arduino:
 
 $$
 u[k] = u[k-1] + b_0\,e[k] + b_1\,e[k-1]
 $$
 
-cu $b_0 = 1.896$, $b_1 = -1.137$ (coeficienții rezultați din discretizare).
+with $b_0 = 1.896$, $b_1 = -1.137$ (coefficients resulting from discretization).
 
-## 3. Validare Simulink
+## 3. Simulink Validation
 
-`simulink/simulare_regulator_simulink.slx` — model buclă închisă (referință → regulator PI → plantă identificată → feedback), folosit pentru a confirma comportamentul (overshoot, timp de stabilizare, eroare staționară) înainte de implementarea hardware.
+`simulink/simulare_regulator_simulink.slx` — closed-loop model (reference → PI controller → identified plant → feedback), used to confirm behavior (overshoot, settling time, steady-state error) before hardware implementation.
 
-## 4. Implementare Arduino (timp real)
+## 4. Arduino Implementation (real-time)
 
 `firmware/motor_pi_controller.ino`:
-- Citește viteza motorului din encoder (PPR = 293) via interrupt pe front crescător
-- Calculează RPM la fiecare `SAMPLE_MS = 50 ms`
-- Primește referința de viteză prin Serial (`rpm_ref`)
-- Aplică regulatorul PI discret (forma recursivă de mai sus)
-- Saturare PWM la [0, 255]
-- Trimite pe Serial: timp, referință, RPM măsurat (pentru logging/plotare)
+- Reads motor speed from the incremental encoder (PPR = 293) via rising-edge interrupt
+- Computes RPM every `SAMPLE_MS = 50 ms`
+- Receives speed reference via Serial (`rpm_ref`)
+- Applies the discrete PI controller (recursive form above)
+- Saturates PWM to [0, 255]
+- Sends over Serial: time, reference, measured RPM (for logging/plotting)
 
 **Hardware:**
-- Motor DC cu encoder incremental (293 PPR)
-- Driver motor cu intrări `RPWM`/`LPWM` (ex. punte H tip BTS7960/L298N)
-- Arduino (Uno/Mega/Nano — orice placă cu interrupt extern pe pinul encoderului)
+- DC motor with incremental encoder (293 PPR)
+- Motor driver with `RPWM`/`LPWM` inputs (e.g. H-bridge type BTS7960/L298N)
+- Arduino (Uno/Mega/Nano — any board with external interrupt on the encoder pin)
 
 ### Pinout
 
-| Semnal | Pin Arduino |
+| Signal | Arduino Pin |
 |---|---|
 | RPWM (driver) | D5 |
 | LPWM (driver) | D6 |
 | Encoder | D2 (interrupt) |
 
-## Cum rulezi proiectul
+## How to Run the Project
 
-1. **Identificare**: rulează `matlab/identificare_planta.mlx` (necesită System Identification Toolbox) pe `data/identificare_sistem.csv`
-2. **Design regulator**: rulează `matlab/identificare_regulator_loopshaping.mlx` (necesită Control System Toolbox)
-3. **Validare**: deschide `simulink/simulare_regulator_simulink.slx` în Simulink și simulează
-4. **Hardware**: încarcă `firmware/motor_pi_controller.ino` pe Arduino, conectează motorul/encoderul conform pinout-ului din fișierul .ino, trimite referința de viteză (RPM) prin Serial Monitor la 115200 baud
+1. **Identification**: run `matlab/identificare_planta.mlx` (requires System Identification Toolbox) on `data/identificare_sistem.csv`
+2. **Controller design**: run `matlab/identificare_regulator_loopshaping.mlx` (requires Control System Toolbox)
+3. **Validation**: open `simulink/simulare_regulator_simulink.slx` in Simulink and simulate
+4. **Hardware**: upload `firmware/motor_pi_controller.ino` to Arduino, connect the motor/encoder per the pinout in the .ino file, send the speed reference (RPM) via Serial Monitor at 115200 baud
 
-## Cerințe
+## Requirements
 
-- MATLAB cu Control System Toolbox și System Identification Toolbox
+- MATLAB with Control System Toolbox and System Identification Toolbox
 - Simulink
 - Arduino IDE
 
-## Licență
+## License
 
 [MIT](LICENSE)
