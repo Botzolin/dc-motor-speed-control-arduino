@@ -11,6 +11,8 @@ Proiect complet de control automat pentru reglarea vitezei unui motor DC cu enco
 | `matlab/identificare_regulator_loopshaping.mlx` | Proiectarea regulatorului PI prin loop shaping, analiză Bode/margine de fază, discretizare |
 | `simulink/simulare_regulator_simulink.slx` | Model Simulink pentru validarea buclei închise (plantă + regulator) |
 | `firmware/motor_pi_controller.ino` | Firmware Arduino: citire encoder (interrupt), regulator PI discret, comunicație serială |
+| `demonstration/demonstration_video` | Vide demonstrativ pentru proiect|
+
 
 ## 1. Identificare sistem
 
